@@ -29,6 +29,7 @@ def build_dataset_json(
 	imagenet_root: str,
 	out_json: str,
 	use_wordnet: bool = False,
+	include_hypernym: bool = True,
 ):
 	"""
 	Build a JSON dataset file from an ImageNet wnid->label mapping file.
@@ -38,8 +39,11 @@ def build_dataset_json(
 	  - definition: WordNet definition if available, otherwise the alias string
 	  - synset_id: the ImageNet wnid (e.g. 'n01440764')
 	  - image_dir: relative path to the folder containing validation images for that wnid
+	  - hypernym: (optional) the primary hypernym name (more general term) from WordNet
 
-	If `use_wordnet` is True, NLTK's WordNet will be queried to populate `definition`.
+
+	If `use_wordnet` is True, NLTK's WordNet will be queried to populate `definition` and `hypernym`.
+	If `include_hypernym` is True and WordNet is available, hypernym will be extracted.
 	Make sure to run `nltk.download('wordnet')` locally before using that mode.
 	"""
 	entries: List[Dict] = []
@@ -55,14 +59,21 @@ def build_dataset_json(
 		wnid, names = parts[0], parts[1]
 		primary = names.split(",")[0].strip()
 		definition = names
+		hypernym = None
 
-		if use_wordnet and wn is not None:
+
+		if (use_wordnet or include_hypernym) and wn is not None:
 			try:
 				# Convert wnid like 'n01440764' -> offset int(1440764)
 				offset = int(wnid[1:])
 				syn = wn.synset_from_pos_and_offset("n", offset)
-				primary = syn.lemmas()[0].name()
-				definition = syn.definition()
+				if use_wordnet:
+					primary = syn.lemmas()[0].name()
+					definition = syn.definition()
+				# Extract hypernym (more general term)
+				hypernyms = syn.hypernyms()
+				if hypernyms:
+					hypernym = hypernyms[0].lemmas()[0].name()
 			except Exception:
 				# fallback to mapping text
 				pass
@@ -74,6 +85,8 @@ def build_dataset_json(
 			"synset_id": wnid,
 			"image_dir": image_dir,
 		}
+		if hypernym is not None:
+			entry["hypernym"] = hypernym
 		entries.append(entry)
 
 	with open(out_json, "w", encoding="utf-8") as out:
@@ -162,7 +175,7 @@ if __name__ == "__main__":
 
 	if not out.exists():
 		print("Building starter dataset.json (uses mapping text as definition).")
-		build_dataset_json(str(mapping), str(imagenet_root), str(out), use_wordnet=False)
+		build_dataset_json(str(mapping), str(imagenet_root), str(out), use_wordnet=True, include_hypernym=True)
 		print("Wrote", out)
 	else:
 		print(out, "already exists. To regenerate run build_dataset_json with use_wordnet=True after installing NLTK.")
