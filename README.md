@@ -17,6 +17,8 @@ This repository contains code and data for a Reverse Dictionary-style task using
 - `examples/`: small example scripts (e.g., `examples/test_dataset.py`) demonstrating dataset loading and visualization.
 - `student_test.ipynb`: Notebook that trains the text-only `StudentModel`, performs retrieval, and computes recall@k.
 - `teacher_test.ipynb`: Notebook that trains the `TeacherModel` with multimodal input, performs retrieval, and computes recall@k.
+- `distillation.py`: Knowledge distillation training script (text-only student learns from frozen multimodal teacher).
+- `distillation.ipynb`: Notebook that implements distillation training, alignment evaluation, and vector space visualization.
 - `visualize_embeddings.py`: Script to create unified side-by-side visualizations of StudentModel, TeacherModel, and GloVe embeddings using t-SNE for selected hypernym groups.
 
 **StudentModel (text-only baseline)**
@@ -59,6 +61,35 @@ This repository contains code and data for a Reverse Dictionary-style task using
   - `--perplexity`: t-SNE perplexity parameter (default: 30)
   - `--device`: device for model inference, options: `cpu`, `cuda`, `mps` (default: `cpu`)
   - `--output`: output image path (default: `embeddings_comparison.png`)
+
+**Knowledge Distillation (Advanced)**
+- **Concept**: Train a text-only StudentModel to mimic a frozen multimodal TeacherModel, transferring multimodal knowledge to a text-only architecture.
+- **The Distillation Loop**:
+  1. Pass (definition, image) to frozen Teacher → Get Teacher_Vector
+  2. Pass (definition) to Student → Get Student_Vector
+  3. Minimize MSE loss between Student_Vector and Teacher_Vector
+- **Result**: The student learns to produce embeddings aligned with the teacher's multimodal understanding, without needing images at inference time.
+- **Advantage**: The distilled student achieves better performance than a naive text-only baseline because it implicitly learns from the teacher's multimodal representations.
+- **Files**:
+  - `distillation.py`: CLI script for distillation training with configurable epochs, learning rate, batch size, etc.
+  - `distillation.ipynb`: Interactive notebook demonstrating distillation training, alignment metrics (MSE, cosine similarity), and vector space visualization via t-SNE.
+  - `student_distilled.pt` (generated): saved distilled student model checkpoint.
+- **Usage** (script):
+  ```bash
+  python3 distillation.py \
+    --dataset dataset.json \
+    --glove ./glove.6B.300d.txt \
+    --teacher-model ./ckpts/teacher_model.pt \
+    --epochs 15 \
+    --batch 16 \
+    --lr 2e-5 \
+    --device cpu \
+    --output ./ckpts/student_distilled.pt
+  ```
+- **Evaluation**: `distillation.ipynb` computes:
+  - Student-Teacher alignment metrics (MSE, cosine similarity)
+  - Comparison of distilled vs vanilla student retrieval performance
+  - t-SNE visualization of student vs teacher vector spaces
 
 **Quick start**
 1. Install dependencies:
