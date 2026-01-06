@@ -126,3 +126,6 @@ attention_mask = sample['attention_mask'].unsqueeze(0)
 image = sample['image'].unsqueeze(0)
 output = model(input_ids, attention_mask, image, training=True)  # shape: (1, 300)
 ```
+
+**Demo start**
+streamlit run ./app.py
